@@ -30,21 +30,21 @@ model User {
   profile      String?
   name         String
   createdAt    DateTime @default(now())
-  gamesCreated Game[]   @relation("admin")
+  gamesCreated Game[]
+  gamesWon     Json[]
 }
 
 model Game {
   id        String     @id @default(uuid())
   title     String
   code      String
-  admin     User       @relation(fields: [adminId], references: [id], onDelete: Cascade, "admin")
+  admin     User       @relation(fields: [adminId], references: [id], onDelete: Cascade)
   adminId   Int
   type      GameType   @default(CLASSIC_MCQ)
-  status    GameStatus
+  status    GameStatus @default(WAITING)
   players   Json[]
   questions Question[]
-  createdAt DateTime
-  userId    Int?
+  createdAt DateTime   @default(now())
 }
 
 model Question {
