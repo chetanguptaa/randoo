@@ -23,7 +23,6 @@ export class AppModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(AuthMiddleware)
-      .exclude({ path: 'games/:gameId/join-game', method: RequestMethod.POST })
-      .forRoutes({ path: 'games/*', method: RequestMethod.ALL });
+      .forRoutes({ path: '/games/*', method: RequestMethod.ALL });
   }
 }

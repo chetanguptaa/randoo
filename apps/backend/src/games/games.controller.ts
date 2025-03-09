@@ -17,6 +17,7 @@ import {
 } from '@repo/common-types/dist';
 import { Request, Response } from 'express';
 import { GamesService } from './games.service';
+import { Observable } from 'rxjs';
 
 @Controller('games')
 export class GamesController {
@@ -88,7 +89,17 @@ export class GamesController {
     @Req() req: Request,
     @Param('gameId') gameId: string,
     @Res() res: Response,
-  ): void {
-    return this.gameService.sse(gameId, req, res);
+  ): Observable<MessageEvent> {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    return new Observable<MessageEvent>((subscriber) => {
+      this.gameService.sse(gameId, req, res, (eventData: any) => {
+        new MessageEvent('message', { data: eventData });
+      });
+      req.on('close', () => {
+        subscriber.complete();
+      });
+    });
   }
 }

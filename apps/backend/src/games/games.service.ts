@@ -16,16 +16,21 @@ import { IUser } from 'src/guard/auth.guard';
 
 @Injectable()
 export class GamesService {
-  private redisClient: Redis;
+  private redisSubscriber: Redis;
+  private redisPublisher: Redis;
   private clients: Record<string, Response[]>;
   constructor() {
     this.clients = {};
-    this.redisClient = new Redis({
+    this.redisSubscriber = new Redis({
       host: 'localhost',
       port: 6379,
     });
-    this.redisClient.subscribe('game-countdown');
-    this.redisClient.on('message', (channel, message) => {
+    this.redisPublisher = new Redis({
+      host: 'localhost',
+      port: 6379,
+    });
+    this.redisSubscriber.subscribe('game-countdown');
+    this.redisSubscriber.on('message', (channel, message) => {
       if (channel === 'game-countdown') {
         const { gameId, text } = JSON.parse(message);
         this.sendGameUpdate(gameId, text);
@@ -127,35 +132,37 @@ export class GamesService {
     if (game.status === 'COMPLETED') {
       throw new BadRequestException('Game has already completed');
     }
-    let countdown = 5;
+    let countDown = 5;
     const intervalId = setInterval(async () => {
-      if (countdown === 0) {
+      if (countDown === 0) {
         clearInterval(intervalId);
         await prisma.game.update({
           where: { id: gameId },
           data: { status: 'ACTIVE' },
         });
-        this.redisClient.publish(
+        this.redisPublisher.publish(
           'game-countdown',
           JSON.stringify({
             gameId,
-            text: 'Game has started!',
+            status: 1, // here 0 means not started, 1 means started
           }),
         );
         return;
       }
-      this.redisClient.publish(
+      this.redisPublisher.publish(
         'game-countdown',
         JSON.stringify({
           gameId,
-          text: `Game will start in ${countdown} seconds...`,
+          countDown,
+          status: 0,
         }),
       );
-      countdown--;
+      countDown--;
     }, 1000);
     return {
       success: true,
-      message: 'Game starting in 5 seconds...',
+      countDown: 5,
+      status: 0,
     };
   }
 
@@ -167,16 +174,28 @@ export class GamesService {
     }
   }
 
-  sse(gameId: string, req: Request, res: Response): void {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
+  sse(
+    gameId: string,
+    req: Request,
+    res: Response,
+    sendEvent: (data: any) => void,
+  ): void {
     if (!this.clients[gameId]) {
       this.clients[gameId] = [];
     }
     this.clients[gameId].push(res);
+    this.redisSubscriber.subscribe(`game-countdown`);
+    this.redisSubscriber.on('message', (channel, message) => {
+      if (channel === 'game-countdown') {
+        const parsedMessage = JSON.parse(message);
+        if (parsedMessage.gameId === gameId) {
+          sendEvent(parsedMessage);
+        }
+      }
+    });
     req.on('close', () => {
       this.clients[gameId] = this.clients[gameId].filter((r) => r !== res);
+      res.end();
     });
   }
 

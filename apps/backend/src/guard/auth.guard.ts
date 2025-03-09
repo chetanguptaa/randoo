@@ -24,6 +24,10 @@ declare global {
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
+    // TODO -> find a better way to do it
+    if (req.path.includes('/join-game') || req.path.includes('/updates')) {
+      return next();
+    }
     const token = req.cookies['auth_token'];
     if (!token) {
       throw new UnauthorizedException();
