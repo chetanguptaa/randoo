@@ -9,6 +9,7 @@ import * as jwt from 'jsonwebtoken';
 export interface IUser {
   id: number;
   email: string;
+  name: string;
   createdAt: Date;
 }
 

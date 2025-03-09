@@ -11,4 +11,14 @@ export const createGameRequest = z
   })
   .strict();
 
+export const createQuestionsRequest = z.array(
+  z.object({
+    title: z.string().min(8),
+    options: z.array(z.string()),
+    correctAnswerIndex: z.number().optional(),
+    metadata: z.any().optional(),
+  })
+);
+
 export type TCreateGameRequest = z.infer<typeof createGameRequest>;
+export type TCreateQuestionsRequest = z.infer<typeof createQuestionsRequest>;

@@ -6,6 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import { CookieOptions, Response } from 'express';
 import * as jwt from 'jsonwebtoken';
 import { COOKIE_NAMES, expiresTimeTokenMilliseconds } from 'src/constants/auth';
+import { IUser } from 'src/guard/auth.guard';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +26,7 @@ export class AuthService {
     const resWithCookies = this.setJwtTokenToCookies(res, {
       id: user.id,
       email: user.email,
+      name: user.name,
       createdAt: user.createdAt,
     });
     return resWithCookies.json({
@@ -49,6 +51,7 @@ export class AuthService {
     const resWithCookies = this.setJwtTokenToCookies(res, {
       id: user.id,
       email: user.email,
+      name: user.name,
       createdAt: user.createdAt,
     });
     return resWithCookies.json({
@@ -57,14 +60,7 @@ export class AuthService {
     });
   }
 
-  private setJwtTokenToCookies(
-    res: Response,
-    user: {
-      id: number;
-      email: string;
-      createdAt: Date;
-    },
-  ) {
+  private setJwtTokenToCookies(res: Response, user: IUser) {
     const expirationDateInMilliseconds =
       new Date().getTime() + expiresTimeTokenMilliseconds;
     const cookieOptions: CookieOptions = {

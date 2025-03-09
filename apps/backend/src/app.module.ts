@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { GamesModule } from './games/games.module';
 import configuration from './config/configuration';
 import { AuthMiddleware } from './guard/auth.guard';
+import { PlayersModule } from './players/players.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AuthMiddleware } from './guard/auth.guard';
     }),
     AuthModule,
     GamesModule,
+    PlayersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
@@ -23,6 +25,6 @@ export class AppModule {
   configure(consumer: any) {
     consumer
       .apply(AuthMiddleware)
-      .forRoutes({ path: 'games', method: RequestMethod.POST });
+      .forRoutes({ path: 'games/*', method: RequestMethod.ALL });
   }
 }

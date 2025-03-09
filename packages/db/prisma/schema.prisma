@@ -35,25 +35,37 @@ model User {
 }
 
 model Game {
-  id        String     @id @default(uuid())
-  title     String
-  code      String
-  admin     User       @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  adminId   Int
-  type      GameType   @default(CLASSIC_MCQ)
-  status    GameStatus @default(WAITING)
-  players   Json[]
-  questions Question[]
-  createdAt DateTime   @default(now())
+  id                 String     @id @default(uuid())
+  title              String
+  code               String
+  admin              User       @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  adminId            Int
+  type               GameType   @default(CLASSIC_MCQ)
+  status             GameStatus @default(WAITING)
+  players            Json[]
+  questions          Question[]
+  timeLimitInSeconds Int? // use it later when we want automatic game stop
+  createdAt          DateTime   @default(now())
 }
 
 model Question {
   id                 String   @id @default(uuid())
   gameId             String
   game               Game     @relation(fields: [gameId], references: [id])
-  text               String
-  options            Json[]
-  metadata           Json
+  title              String
+  options            Json[] /// for mcq type questions
+  metadata           Json?
   correctAnswerIndex Int
+  predefinedAnswers  Json[]
+  submittedAnswers   Answer[]
   createdAt          DateTime @default(now())
+}
+
+// here we'll have to check what type the question is if the question is of type mcq then it is straight forward otherwise what we'll do for now is to make the text as json so it'll be more flexible to do inculcate different types of answers
+model Answer {
+  id         String   @id @default(uuid())
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId String
+  user       Json
+  text       Json
 }
