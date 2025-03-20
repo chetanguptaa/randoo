@@ -94,9 +94,25 @@ export class GamesController {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     return new Observable<MessageEvent>((subscriber) => {
-      this.gameService.sse(gameId, req, res, (eventData: any) => {
-        new MessageEvent('message', { data: eventData });
-      });
+      this.gameService.sse(
+        gameId,
+        req,
+        res,
+        (eventData: {
+          gameId: string;
+          countDown: number;
+          status: 0 | 1 | 2;
+        }) => {
+          if (eventData.status !== 2) {
+            subscriber.next(new MessageEvent('message', { data: eventData }));
+            if (eventData.status === 1) {
+              subscriber.complete();
+            }
+          } else {
+            subscriber.complete();
+          }
+        },
+      );
       req.on('close', () => {
         subscriber.complete();
       });

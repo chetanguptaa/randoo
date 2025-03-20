@@ -18,9 +18,7 @@ import { IUser } from 'src/guard/auth.guard';
 export class GamesService {
   private redisSubscriber: Redis;
   private redisPublisher: Redis;
-  private clients: Record<string, Response[]>;
   constructor() {
-    this.clients = {};
     this.redisSubscriber = new Redis({
       host: 'localhost',
       port: 6379,
@@ -28,13 +26,6 @@ export class GamesService {
     this.redisPublisher = new Redis({
       host: 'localhost',
       port: 6379,
-    });
-    this.redisSubscriber.subscribe('game-countdown');
-    this.redisSubscriber.on('message', (channel, message) => {
-      if (channel === 'game-countdown') {
-        const { gameId, text } = JSON.parse(message);
-        this.sendGameUpdate(gameId, text);
-      }
     });
   }
   async createGame(user: IUser, body: TCreateGameRequest) {
@@ -144,7 +135,7 @@ export class GamesService {
           'game-countdown',
           JSON.stringify({
             gameId,
-            status: 1, // here 0 means not started, 1 means started
+            status: 1, // here 0 means not started, 1 means started, and 2 means close the connection
           }),
         );
         return;
@@ -166,35 +157,34 @@ export class GamesService {
     };
   }
 
-  private sendGameUpdate(gameId: string, message: string) {
-    if (this.clients[gameId]) {
-      this.clients[gameId].forEach((res) => {
-        res.write(`data: ${JSON.stringify({ message })}\n\n`);
-      });
-    }
-  }
-
-  sse(
+  async sse(
     gameId: string,
     req: Request,
     res: Response,
     sendEvent: (data: any) => void,
-  ): void {
-    if (!this.clients[gameId]) {
-      this.clients[gameId] = [];
+  ): Promise<void> {
+    const game = await prisma.game.findFirst({
+      where: {
+        id: gameId,
+      },
+    });
+    if (!game || game.status === 'COMPLETED' || game.status === 'ACTIVE') {
+      sendEvent({ status: 2 });
     }
-    this.clients[gameId].push(res);
-    this.redisSubscriber.subscribe(`game-countdown`);
+    this.redisSubscriber.subscribe('game-countdown');
     this.redisSubscriber.on('message', (channel, message) => {
       if (channel === 'game-countdown') {
-        const parsedMessage = JSON.parse(message);
+        const parsedMessage = JSON.parse(message) as {
+          gameId: string;
+          countDown?: number;
+          status: 0 | 1 | 2;
+        };
         if (parsedMessage.gameId === gameId) {
           sendEvent(parsedMessage);
         }
       }
     });
     req.on('close', () => {
-      this.clients[gameId] = this.clients[gameId].filter((r) => r !== res);
       res.end();
     });
   }
@@ -270,6 +260,7 @@ export class GamesService {
       });
     }
     if (name) {
+      const id = randomUUID();
       await prisma.game.update({
         where: {
           id: gameId,
@@ -277,12 +268,17 @@ export class GamesService {
         data: {
           players: {
             push: {
-              id: randomUUID(),
+              id,
               name,
             },
           },
         },
       });
+      return {
+        id,
+        success: true,
+        message: 'Joined the game successfully',
+      };
     }
     return {
       success: true,
